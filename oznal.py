@@ -8,10 +8,12 @@ import matplotlib.colors as clrs
 import pandas as pd
 import numpy as np
 
+from scipy import stats
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import KFold
 from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import cross_val_predict
+from sklearn.linear_model import LinearRegression
 from sklearn.svm import SVR
 
 # Import dataset
@@ -21,36 +23,77 @@ data = pd.DataFrame(pd.read_csv('listings.csv'))
 # Vybratie stlpcov z datasetu
 df = pd.DataFrame(data=pd.read_csv('listings.csv'), columns=[
     'price',
+    'availability_365',
+    'minimum_nights',
     'number_of_reviews',
-    'latitude',
-    'longitude',
-    'neighbourhood'])
+    ])
 
-print('Random split')
-train, test = train_test_split(df, train_size=0.8, test_size=0.2)
+df2 = pd.DataFrame(data=pd.read_csv('listings.csv'), columns=[
+    'room_type',
+    'neighbourhood'
+    ])
+    
+df = df[(np.abs(stats.zscore(df))< 3).all(axis=1)]
+df = df.join(df2)
 
-# print(train)
-# print('============================================================================')
-# print(test)
+mapper = { 'Private room': 0, 'Entire home/apt': 1, 'Shared room': 2}
+df = df.replace({ 'room_type': mapper })
+neighbourhoods = df.neighbourhood.unique().tolist()
+neighbour_mapper = {neighbourhoods[i]: i for i in range(0, len(neighbourhoods))}
+df = df.replace({'neighbourhood': neighbour_mapper})
 
-print('K fold')
-X = df.iloc[:, [1, 2, 3]].values
+# Vypis tabulku korelacie
+print(df.corr())
+
+pd.plotting.scatter_matrix(df, figsize=(7, 7))
+plt.show()
+
+
+X = df.iloc[:, [1, 2, 3, 4, 5]].values
 y = df.iloc[:, 0].values
 
-scores = []
-best_svr = SVR(kernel='rbf')
-cv = KFold(n_splits=5, shuffle=True, random_state=9)
-for train_index, test_index in cv.split(X):
-    print("Train Index: ", train_index)
-    print("Test Index: ", test_index)
+X_train, X_test, y_train, y_test = train_test_split(X, y, train_size=0.8, test_size=0.2, random_state=9)
 
-    X_train, X_test, y_train, y_test = X[train_index], X[test_index], y[train_index], y[test_index]
-    best_svr.fit(X_train, y_train)
-    scores.append(best_svr.score(X_test, y_test))
+bp = plt.boxplot(X_train)
+plt.show()
+
+# avail_365_upper_outlier = bp['fliers'][0].get_data()[1]
+# min_nights_upper_outlier =  bp['fliers'][1].get_data()[1]
+# no_reviews_upper_outlier = bp['fliers'][2].get_data()[1]
+
+# print(len(X_train))
+# X_train = [x for x in X_train if x[0] not in avail_365_upper_outlier]
+# X_train = [x for x in X_train if x[1] not in min_nights_upper_outlier]
+# X_train = [x for x in X_train if x[2] not in no_reviews_upper_outlier]
+# print(X_train)
+
+linear_model = LinearRegression(n_jobs=-1)
+linear_model.fit(X_train,y_train)
+
+predictions = linear_model.predict(X_test)
+plt.scatter(y_test,predictions)
+plt.xlabel("True Values")
+plt.ylabel("Predictions")
+
+print(linear_model.score(X_test, y_test))
+plt.show()
+
+# print('K fold')
+
+# scores = []
+# best_svr = SVR(kernel='rbf', gamma='auto')
+# cv = KFold(n_splits=5, shuffle=True, random_state=9)
+# for train_index, test_index in cv.split(X):
+#     print("Train Index: ", train_index)
+#     print("Test Index: ", test_index)
+
+#     X_train, X_test, y_train, y_test = X[train_index], X[test_index], y[train_index], y[test_index]
+#     best_svr.fit(X_train, y_train)
+#     scores.append(best_svr.score(X_test, y_test))
 
 
-print(cross_val_score(best_svr, X, y, cv=5))
-print(cross_val_predict(best_svr, X, y, cv=5))
+# print(cross_val_score(best_svr, X, y, cv=5))
+# print(cross_val_predict(best_svr, X, y, cv=5))
 
 # # Definicia mriezky pre jednotlive grafy
 # plt.subplot(1, 2, 1)
