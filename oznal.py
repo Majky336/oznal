@@ -14,7 +14,19 @@ from sklearn.model_selection import KFold
 from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import cross_val_predict
 from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_squared_error
 from sklearn.svm import SVR
+
+# Util functions
+
+def remove_outlier(df_in, col_name):
+    q1 = df_in[col_name].quantile(0.25)
+    q3 = df_in[col_name].quantile(0.75)
+    iqr = q3-q1 #Interquartile range
+    fence_low  = q1-1.5*iqr
+    fence_high = q3+1.5*iqr
+    df_out = df_in.loc[(df_in[col_name] > fence_low) & (df_in[col_name] < fence_high)]
+    return df_out
 
 # Import dataset
 
@@ -26,15 +38,16 @@ df = pd.DataFrame(data=pd.read_csv('listings.csv'), columns=[
     'availability_365',
     'minimum_nights',
     'number_of_reviews',
-    ])
-
-df2 = pd.DataFrame(data=pd.read_csv('listings.csv'), columns=[
     'room_type',
     'neighbourhood'
     ])
-    
-df = df[(np.abs(stats.zscore(df))< 3).all(axis=1)]
-df = df.join(df2)
+
+df2 = pd.DataFrame(data=pd.read_csv('listings_details.csv'))
+print(df2.columns.tolist())
+
+df = remove_outlier(df, 'availability_365')
+df = remove_outlier(df, 'minimum_nights')
+df = remove_outlier(df, 'number_of_reviews')
 
 mapper = { 'Private room': 0, 'Entire home/apt': 1, 'Shared room': 2}
 df = df.replace({ 'room_type': mapper })
@@ -57,17 +70,7 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, train_size=0.8, test_s
 bp = plt.boxplot(X_train)
 plt.show()
 
-# avail_365_upper_outlier = bp['fliers'][0].get_data()[1]
-# min_nights_upper_outlier =  bp['fliers'][1].get_data()[1]
-# no_reviews_upper_outlier = bp['fliers'][2].get_data()[1]
-
-# print(len(X_train))
-# X_train = [x for x in X_train if x[0] not in avail_365_upper_outlier]
-# X_train = [x for x in X_train if x[1] not in min_nights_upper_outlier]
-# X_train = [x for x in X_train if x[2] not in no_reviews_upper_outlier]
-# print(X_train)
-
-linear_model = LinearRegression(n_jobs=-1)
+linear_model = LinearRegression(fit_intercept=True)
 linear_model.fit(X_train,y_train)
 
 predictions = linear_model.predict(X_test)
@@ -76,6 +79,7 @@ plt.xlabel("True Values")
 plt.ylabel("Predictions")
 
 print(linear_model.score(X_test, y_test))
+print("Mean squared error:", mean_squared_error(y_test, predictions))
 plt.show()
 
 # print('K fold')
