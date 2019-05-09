@@ -1,6 +1,7 @@
 {
-    "python.pythonPath": "/Users/sojka/.local/share/virtualenvs/oznal-gi1u8Qcc/bin/python",
+    "python.pythonPath": "C:\\Python\\python.exe",
     "python.linting.pylintEnabled": true,
     "python.linting.enabled": true,
-    "python.linting.pylamaEnabled": false
+    "python.linting.pylamaEnabled": false,
+    "python.formatting.provider": "black"
 }
